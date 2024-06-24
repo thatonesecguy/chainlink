@@ -231,6 +231,9 @@ TLSCertPath = '/path/to/cert.pem'
 env = 'dev'
 test = 'load'
 
+[HeadReport]
+TelemetryEnabled = true
+
 [Mercury]
 VerboseLogging = true
 
