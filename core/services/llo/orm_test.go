@@ -42,12 +42,13 @@ func Test_ORM(t *testing.T) {
 	"%d": {
 		"reportFormat": 42,
 		"chainSelector": 142,
-		"streamIds": [1, 2]
+		"streams": [{"streamId": 1, "aggregator": "median"}, {"streamId": 2, "aggregator": "mode"}],
+		"opts": {"foo":"bar"}
 	},
 	"%d": {
-		"reportFormat": 42,
+		"reportFormat": 43,
 		"chainSelector": 142,
-		"streamIds": [1, 3]
+		"streams": [{"streamId": 1, "aggregator": "median"}, {"streamId": 3, "aggregator": "quote"}]
 	}
 }
 			`, cid1, cid2)
@@ -78,14 +79,13 @@ func Test_ORM(t *testing.T) {
 
 			assert.Equal(t, llotypes.ChannelDefinitions{
 				cid1: llotypes.ChannelDefinition{
-					ReportFormat:  42,
-					ChainSelector: 142,
-					StreamIDs:     []llotypes.StreamID{1, 2},
+					ReportFormat: 42,
+					Streams:      []llotypes.Stream{{StreamID: 1, Aggregator: llotypes.AggregatorMedian}, {StreamID: 2, Aggregator: llotypes.AggregatorMode}},
+					Opts:         []byte(`{"foo":"bar"}`),
 				},
 				cid2: llotypes.ChannelDefinition{
-					ReportFormat:  42,
-					ChainSelector: 142,
-					StreamIDs:     []llotypes.StreamID{1, 3},
+					ReportFormat: 43,
+					Streams:      []llotypes.Stream{{StreamID: 1, Aggregator: llotypes.AggregatorMedian}, {StreamID: 3, Aggregator: llotypes.AggregatorQuote}},
 				},
 			}, cd)
 			assert.Equal(t, expectedBlockNum, blockNum)

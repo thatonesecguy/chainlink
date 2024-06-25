@@ -14,8 +14,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -33,6 +36,9 @@ import (
 	commonconfig "github.com/smartcontractkit/chainlink-common/pkg/config"
 
 	"github.com/smartcontractkit/chainlink/v2/core/bridges"
+	"github.com/smartcontractkit/chainlink/v2/core/chains/evm/assets"
+	"github.com/smartcontractkit/chainlink/v2/core/gethwrappers/llo-feeds/generated/destination_verifier"
+	"github.com/smartcontractkit/chainlink/v2/core/gethwrappers/llo-feeds/generated/destination_verifier_proxy"
 	"github.com/smartcontractkit/chainlink/v2/core/internal/cltest"
 	"github.com/smartcontractkit/chainlink/v2/core/internal/cltest/heavyweight"
 	"github.com/smartcontractkit/chainlink/v2/core/internal/testutils"
@@ -215,7 +221,7 @@ func setupNode(
 
 func ptr[T any](t T) *T { return &t }
 
-func addStreamJob(
+func addSingleDecimalStreamJob(
 	t *testing.T,
 	node Node,
 	streamID uint32,
@@ -230,9 +236,8 @@ observationSource = """
 	// Benchmark Price
 	price1          [type=bridge name="%s" requestData="{\\"data\\":{\\"data\\":\\"foo\\"}}"];
 	price1_parse    [type=jsonparse path="result"];
-	price1_multiply [type=multiply times=100000000 index=0];
 
-	price1 -> price1_parse -> price1_multiply;
+	price1 -> price1_parse;
 """
 
 		`,
@@ -242,6 +247,47 @@ observationSource = """
 	))
 }
 
+func addQuoteStreamJob(
+	t *testing.T,
+	node Node,
+	streamID uint32,
+	benchmarkBridgeName string,
+	bidBridgeName string,
+	askBridgeName string,
+) {
+	node.AddStreamJob(t, fmt.Sprintf(`
+type = "stream"
+schemaVersion = 1
+name = "strm-spec-%d"
+streamID = %d
+observationSource = """
+	// Benchmark Price
+	price1          [type=bridge name="%s" requestData="{\\"data\\":{\\"data\\":\\"foo\\"}}"];
+	price1_parse    [type=jsonparse path="result" index=0];
+
+	price1 -> price1_parse;
+
+	// Bid
+	price2          [type=bridge name="%s" requestData="{\\"data\\":{\\"data\\":\\"foo\\"}}"];
+	price2_parse    [type=jsonparse path="result" index=1];
+
+	price2 -> price2_parse;
+
+	// Ask
+	price3          [type=bridge name="%s" requestData="{\\"data\\":{\\"data\\":\\"foo\\"}}"];
+	price3_parse    [type=jsonparse path="result" index=2];
+
+	price3 -> price3_parse;
+"""
+
+		`,
+		streamID,
+		streamID,
+		benchmarkBridgeName,
+		bidBridgeName,
+		askBridgeName,
+	))
+}
 func addBootstrapJob(t *testing.T, bootstrapNode Node, verifierAddress common.Address, name string, relayType, relayConfig string) {
 	bootstrapNode.AddBootstrapJob(t, fmt.Sprintf(`
 type                              = "bootstrap"
@@ -314,35 +360,12 @@ func addOCRJobs(
 	pluginConfig,
 	relayType,
 	relayConfig string) {
-	ctx := testutils.Context(t)
-	createBridge := func(name string, i int, p *big.Int, borm bridges.ORM) (bridgeName string) {
-		bridge := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-			b, err := io.ReadAll(req.Body)
-			require.NoError(t, err)
-			require.Equal(t, `{"data":{"data":"foo"}}`, string(b))
-
-			res.WriteHeader(http.StatusOK)
-			val := decimal.NewFromBigInt(p, 0).Div(decimal.NewFromInt(multiplier)).Add(decimal.NewFromInt(int64(i)).Div(decimal.NewFromInt(100))).String()
-			resp := fmt.Sprintf(`{"result": %s}`, val)
-			_, err = res.Write([]byte(resp))
-			require.NoError(t, err)
-		}))
-		t.Cleanup(bridge.Close)
-		u, _ := url.Parse(bridge.URL)
-		bridgeName = fmt.Sprintf("bridge-%s-%d", name, i)
-		require.NoError(t, borm.CreateBridgeType(ctx, &bridges.BridgeType{
-			Name: bridges.BridgeName(bridgeName),
-			URL:  models.WebURL(*u),
-		}))
-
-		return bridgeName
-	}
 
 	// Add OCR jobs - one per feed on each node
 	for i, node := range nodes {
 		for j, strm := range streams {
-			bmBridge := createBridge(fmt.Sprintf("benchmarkprice-%d-%d", strm.id, j), i, strm.baseBenchmarkPrice, node.App.BridgeORM())
-			addStreamJob(
+			bmBridge := createBridge(t, fmt.Sprintf("benchmarkprice-%d-%d", strm.id, j), i, strm.baseBenchmarkPrice, node.App.BridgeORM())
+			addSingleDecimalStreamJob(
 				t,
 				node,
 				strm.id,
@@ -362,4 +385,116 @@ func addOCRJobs(
 			relayConfig,
 		)
 	}
+}
+
+func createBridge(t *testing.T, name string, i int, p decimal.Decimal, borm bridges.ORM) (bridgeName string) {
+	ctx := testutils.Context(t)
+	bridge := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		b, err := io.ReadAll(req.Body)
+		require.NoError(t, err)
+		require.Equal(t, `{"data":{"data":"foo"}}`, string(b))
+
+		res.WriteHeader(http.StatusOK)
+		val := p.String()
+		resp := fmt.Sprintf(`{"result": %s}`, val)
+		_, err = res.Write([]byte(resp))
+		require.NoError(t, err)
+	}))
+	t.Cleanup(bridge.Close)
+	u, _ := url.Parse(bridge.URL)
+	bridgeName = fmt.Sprintf("bridge-%s-%d", name, i)
+	require.NoError(t, borm.CreateBridgeType(ctx, &bridges.BridgeType{
+		Name: bridges.BridgeName(bridgeName),
+		URL:  models.WebURL(*u),
+	}))
+
+	return bridgeName
+}
+
+func addOCRJobsEVMPremiumLegacy(
+	t *testing.T,
+	streams []Stream,
+	serverPubKey ed25519.PublicKey,
+	serverURL string,
+	verifierAddress common.Address,
+	bootstrapPeerID string,
+	bootstrapNodePort int,
+	nodes []Node,
+	configStoreAddress common.Address,
+	clientPubKeys []ed25519.PublicKey,
+	pluginConfig,
+	relayType,
+	relayConfig string) {
+	// Add OCR jobs - one per feed on each node
+	for i, node := range nodes {
+		for j, strm := range streams {
+			// assume that streams are native, link and quote
+			if j < 2 {
+				var name string
+				if j == 0 {
+					name = "nativeprice"
+				} else {
+					name = "linkprice"
+				}
+				name = fmt.Sprintf("%s-%d-%d", name, strm.id, j)
+				bmBridge := createBridge(t, name, i, strm.baseBenchmarkPrice, node.App.BridgeORM())
+				addSingleDecimalStreamJob(
+					t,
+					node,
+					strm.id,
+					bmBridge,
+				)
+			} else if j == 2 {
+				bmBridge := createBridge(t, fmt.Sprintf("benchmarkprice-%d-%d", strm.id, j), i, strm.baseBenchmarkPrice, node.App.BridgeORM())
+				bidBridge := createBridge(t, fmt.Sprintf("bid-%d-%d", strm.id, j), i, strm.baseBid, node.App.BridgeORM())
+				askBridge := createBridge(t, fmt.Sprintf("ask-%d-%d", strm.id, j), i, strm.baseAsk, node.App.BridgeORM())
+				addQuoteStreamJob(
+					t,
+					node,
+					strm.id,
+					bmBridge,
+					bidBridge,
+					askBridge,
+				)
+			} else {
+				panic("unexpected stream")
+			}
+		}
+		addLLOJob(
+			t,
+			node,
+			verifierAddress,
+			bootstrapPeerID,
+			bootstrapNodePort,
+			clientPubKeys[i],
+			"feed-1",
+			pluginConfig,
+			relayType,
+			relayConfig,
+		)
+	}
+}
+
+func setupV03Blockchain(t *testing.T) (*bind.TransactOpts, *backends.SimulatedBackend, *destination_verifier.DestinationVerifier, *destination_verifier_proxy.DestinationVerifierProxy, common.Address) {
+	steve := testutils.MustNewSimTransactor(t) // config contract deployer and owner
+	genesisData := core.GenesisAlloc{steve.From: {Balance: assets.Ether(1000).ToInt()}}
+	backend := cltest.NewSimulatedBackend(t, genesisData, uint32(ethconfig.Defaults.Miner.GasCeil))
+	backend.Commit() // ensure starting block number at least 1
+
+	// Deploy verifier proxy
+	verifierProxyAddr, _, verifierProxy, err := destination_verifier_proxy.DeployDestinationVerifierProxy(steve, backend)
+	require.NoError(t, err)
+	backend.Commit()
+
+	// Deploy verifier
+	verifierAddress, _, verifier, err := destination_verifier.DeployDestinationVerifier(steve, backend, verifierProxyAddr)
+	require.NoError(t, err)
+	backend.Commit()
+
+	// Set verifier on proxy
+	_, err = verifierProxy.SetVerifier(steve, verifierAddress)
+	require.NoError(t, err)
+	backend.Commit()
+
+	return steve, backend, verifier, verifierProxy, verifierProxyAddr
 }

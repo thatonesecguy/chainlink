@@ -42,7 +42,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink/v2/core/bridges"
 	"github.com/smartcontractkit/chainlink/v2/core/chains/evm/assets"
-	token "github.com/smartcontractkit/chainlink/v2/core/gethwrappers/generated/link_token_interface"
+	"github.com/smartcontractkit/chainlink/v2/core/gethwrappers/generated/link_token_interface"
 	"github.com/smartcontractkit/chainlink/v2/core/gethwrappers/llo-feeds/generated/fee_manager"
 	"github.com/smartcontractkit/chainlink/v2/core/gethwrappers/llo-feeds/generated/reward_manager"
 	"github.com/smartcontractkit/chainlink/v2/core/gethwrappers/llo-feeds/generated/verifier"
@@ -98,11 +98,11 @@ func setupBlockchain(t *testing.T) (*bind.TransactOpts, *backends.SimulatedBacke
 	t.Cleanup(stopMining)
 
 	// Deploy contracts
-	linkTokenAddress, _, linkToken, err := token.DeployLinkToken(steve, backend)
+	linkTokenAddress, _, linkToken, err := link_token_interface.DeployLinkToken(steve, backend)
 	require.NoError(t, err)
 	_, err = linkToken.Transfer(steve, steve.From, big.NewInt(1000))
 	require.NoError(t, err)
-	nativeTokenAddress, _, nativeToken, err := token.DeployLinkToken(steve, backend)
+	nativeTokenAddress, _, nativeToken, err := link_token_interface.DeployLinkToken(steve, backend)
 	require.NoError(t, err)
 	_, err = nativeToken.Transfer(steve, steve.From, big.NewInt(1000))
 	require.NoError(t, err)
@@ -1015,6 +1015,13 @@ func integration_MercuryV3(t *testing.T) {
 			assert.Equal(t, expectedExpiresAt, reportElems["expiresAt"].(uint32))
 			assert.Equal(t, expectedFee, reportElems["linkFee"].(*big.Int))
 			assert.Equal(t, expectedFee, reportElems["nativeFee"].(*big.Int))
+
+			fmt.Printf("TRASH report: 0x%x\n", report.([]byte))
+			fmt.Printf("TRASH full payload: 0x%x\n", req.req.Payload)
+			fmt.Println("TRASH signers")
+			for _, s := range signers {
+				fmt.Printf("TRASH signer: 0x%x\n", s)
+			}
 
 			t.Logf("oracle %x reported for feed %s (0x%x)", req.pk, feed.name, feed.id)
 

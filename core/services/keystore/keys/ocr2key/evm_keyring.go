@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -34,6 +35,7 @@ func (ekr *evmKeyring) PublicKey() ocrtypes.OnchainPublicKey {
 }
 
 func (ekr *evmKeyring) Sign(reportCtx ocrtypes.ReportContext, report ocrtypes.Report) ([]byte, error) {
+	fmt.Printf("TRASH signing with address %s\n", ekr.signingAddress().Hex())
 	return ekr.signBlob(ekr.reportToSigData(reportCtx, report))
 }
 
