@@ -91,20 +91,20 @@ func (m *LogTriggerGun) Call(_ *wasp.Generator) *wasp.Response {
 
 	resultCh := make(chan *wasp.Response, len(dividedData))
 
-	for _, a := range dividedData {
-		a1 := a
+	for _, data := range dividedData {
+		a := data
 		wg.Add(1)
-		go func(a [][]byte, m *LogTriggerGun) {
+		go func(t [][]byte, m *LogTriggerGun) {
 			defer wg.Done()
 
-			_, err := contracts.MultiCallLogTriggerLoadGen(m.client, m.multiCallAddress, m.addresses, a)
+			_, err := contracts.MultiCallLogTriggerLoadGen(m.client, m.multiCallAddress, m.addresses, t)
 			if err != nil {
 				m.logger.Error().Err(err).Msg("Error calling MultiCallLogTriggerLoadGen")
 				resultCh <- &wasp.Response{Error: err.Error(), Failed: true}
 				return
 			}
 			resultCh <- &wasp.Response{}
-		}(a1, m)
+		}(a, m)
 	}
 	wg.Wait()
 	close(resultCh)
