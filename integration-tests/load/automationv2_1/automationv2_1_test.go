@@ -640,9 +640,10 @@ Load Config:
 
 	for _, triggerContract := range triggerContracts {
 		var (
-			logs    []types.Log
-			address = triggerContract.Address()
-			timeout = 5 * time.Second
+			logs         []types.Log
+			address      = triggerContract.Address()
+			timeout      = 5 * time.Second
+			blockNumbers []uint64
 		)
 		for fromBlock := startBlock; fromBlock < endBlock; fromBlock += batchSize + 1 {
 			filterQuery := geth.FilterQuery{
@@ -668,7 +669,7 @@ Load Config:
 					timeout = time.Duration(math.Min(float64(timeout)*2, float64(2*time.Minute)))
 					continue
 				}
-				l.Debug().
+				l.Info().
 					Interface("FilterQuery", filterQuery).
 					Str("Contract Address", address.Hex()).
 					Str("Timeout", timeout.String()).
@@ -677,6 +678,10 @@ Load Config:
 				logs = append(logs, logsInBatch...)
 			}
 		}
+		for _, l := range logs {
+			blockNumbers = append(blockNumbers, l.BlockNumber)
+		}
+		l.Info().Interface("Block Numbers", blockNumbers).Msg("Block Numbers")
 		numberOfEventsEmitted = numberOfEventsEmitted + int64(len(logs))
 	}
 
