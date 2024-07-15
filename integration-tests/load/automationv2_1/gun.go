@@ -92,6 +92,7 @@ func (m *LogTriggerGun) Call(_ *wasp.Generator) *wasp.Response {
 	resultCh := make(chan *wasp.Response, len(dividedData))
 
 	for _, a := range dividedData {
+		a1 := a
 		wg.Add(1)
 		go func(a [][]byte, m *LogTriggerGun) {
 			defer wg.Done()
@@ -103,7 +104,7 @@ func (m *LogTriggerGun) Call(_ *wasp.Generator) *wasp.Response {
 				return
 			}
 			resultCh <- &wasp.Response{}
-		}(a, m)
+		}(a1, m)
 	}
 	wg.Wait()
 	close(resultCh)
