@@ -1,6 +1,7 @@
 package headtracker
 
 import (
+	"context"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
@@ -19,10 +20,12 @@ type headListener = headtracker.HeadListener[*evmtypes.Head, common.Hash]
 func NewHeadListener(
 	lggr logger.Logger,
 	ethClient evmclient.Client,
-	config htrktypes.Config, chStop chan struct{},
+	config htrktypes.Config,
+	onSubscription func(context.Context),
+	handleNewHead headtracker.HeadHandler[*evmtypes.Head, common.Hash],
 ) headListener {
 	return headtracker.NewHeadListener[
 		*evmtypes.Head,
 		ethereum.Subscription, *big.Int, common.Hash,
-	](lggr, ethClient, config, chStop)
+	](lggr, ethClient, config, onSubscription, handleNewHead)
 }
