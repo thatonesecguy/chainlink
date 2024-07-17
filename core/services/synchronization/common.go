@@ -33,8 +33,6 @@ type TelemPayload struct {
 
 // TelemetryService encapsulates all the functionality needed to
 // send telemetry to the ingress server using wsrpc
-//
-//go:generate mockery --quiet --name TelemetryService --output ./mocks --case=underscore
 type TelemetryService interface {
 	services.ServiceCtx
 	Send(ctx context.Context, telemetry []byte, contractID string, telemType TelemetryType)
