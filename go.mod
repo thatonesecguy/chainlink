@@ -72,7 +72,7 @@ require (
 	github.com/shopspring/decimal v1.3.1
 	github.com/smartcontractkit/chain-selectors v1.0.10
 	github.com/smartcontractkit/chainlink-automation v1.0.4
-	github.com/smartcontractkit/chainlink-common v0.1.7-0.20240712162033-89bd3351ce6e
+	github.com/smartcontractkit/chainlink-common v0.2.1-0.20240718022222-fb6325281b21
 	github.com/smartcontractkit/chainlink-cosmos v0.4.1-0.20240710121324-3ed288aa9b45
 	github.com/smartcontractkit/chainlink-data-streams v0.0.0-20240716180914-6fd88994c89c
 	github.com/smartcontractkit/chainlink-feeds v0.0.0-20240710170203-5b41615da827
@@ -86,7 +86,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/test-go/testify v1.1.4
 	github.com/theodesp/go-heaps v0.0.0-20190520121037-88e35354fe0a
-	github.com/tidwall/gjson v1.17.0
+	github.com/tidwall/gjson v1.17.1
 	github.com/ugorji/go/codec v1.2.12
 	github.com/ulule/limiter/v3 v3.11.2
 	github.com/umbracle/ethgo v0.1.3
