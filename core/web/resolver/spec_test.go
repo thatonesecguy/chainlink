@@ -23,6 +23,7 @@ import (
 	"github.com/smartcontractkit/chainlink/v2/core/services/job"
 	"github.com/smartcontractkit/chainlink/v2/core/services/relay"
 	"github.com/smartcontractkit/chainlink/v2/core/services/signatures/secp256k1"
+	evmmodels "github.com/smartcontractkit/chainlink/v2/core/store/models/evm"
 )
 
 // Specs are only embedded on the job and are not fetchable by it's own id, so
@@ -104,7 +105,7 @@ func TestResolver_DirectRequestSpec(t *testing.T) {
 						EVMChainID:               ubig.NewI(42),
 						MinIncomingConfirmations: clnull.NewUint32(1, true),
 						MinContractPayment:       commonassets.NewLinkFromJuels(1000),
-						Requesters:               models.AddressCollection{requesterAddress},
+						Requesters:               evmmodels.AddressCollection{requesterAddress},
 					},
 				}, nil)
 			},

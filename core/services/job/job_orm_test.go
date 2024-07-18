@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"github.com/pelletier/go-toml/v2"
+	testcommon "github.com/smartcontractkit/chainlink-common/pkg/utils/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v4"
@@ -274,8 +275,8 @@ func TestORM(t *testing.T) {
 		eiBar := cltest.MustInsertExternalInitiator(t, borm)
 
 		eiWS := []webhook.TOMLWebhookSpecExternalInitiator{
-			{Name: eiFoo.Name, Spec: cltest.JSONFromString(t, `{}`)},
-			{Name: eiBar.Name, Spec: cltest.JSONFromString(t, `{"bar": 1}`)},
+			{Name: eiFoo.Name, Spec: testcommon.JSONFromString(t, `{}`)},
+			{Name: eiBar.Name, Spec: testcommon.JSONFromString(t, `{"bar": 1}`)},
 		}
 		eim := webhook.NewExternalInitiatorManager(db, nil)
 		jb, err := webhook.ValidatedWebhookSpec(ctx, testspecs.GenerateWebhookSpec(testspecs.WebhookSpecParams{ExternalInitiators: eiWS}).Toml(), eim)
